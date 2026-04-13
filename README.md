@@ -22,6 +22,7 @@ self-healing on stale cache, structured JSON audit logs.
 | Bulk user onboarding (10 users, full lifecycle) | ~30 min | **6.34 sec** | **284x** |
 | Same operation, second run (NoOp / idempotent) | -- | **<5 sec** | -- |
 | Pre-flight validation of a 10-row CSV | ~5 min | **<1 sec** | -- |
+| Security posture audit (5 checks, 11 users) | ~4 hours (manual) | **5.03 sec** | **~2800x** |
 
 Lifecycle covered per user: create account → set department/title → assign
 license (when SKU available) → set manager → add to departmental security
@@ -98,7 +99,10 @@ m365-automation-toolkit/
 ├── docs/
 │   └── senior-review.md            # gap analysis from a senior M365 POV
 ├── logs/                           # JSON audit logs (gitignored)
+│   └── 02-security-audit/
+│       └── Get-SecurityPosture.ps1      # 5-check security audit → JSON + Excel
 ├── dry.ps1, create.ps1, clean.ps1
+├── audit.ps1, audit-dry.ps1            # Security audit wrappers
 ├── validate-bad.ps1, dedupe-groups.ps1
 ```
 
@@ -207,13 +211,34 @@ recommended patterns are:**
 See `docs/senior-review.md` for the full production gap analysis.
 The interactive auth is a deliberate trade-off, not an oversight.
 
+## Script: Security Posture Audit
+
+`Get-SecurityPosture.ps1` performs five automated security checks:
+
+| Check | What it detects | Severity |
+|---|---|---|
+| MFA registration | Active users without MFA | High |
+| Inactive accounts | No sign-in for 90+ days (or creation age on free tenants) | Medium |
+| Privileged roles | Global Admin, User Admin, Security Admin, etc. | Critical |
+| Guest accounts | External B2B users | Low |
+| Password policy | Accounts with password-never-expires | Medium |
+
+Outputs: console summary, JSON audit log, and Excel workbook with one sheet
+per finding category. Gracefully degrades on free Entra ID tenants (no
+`SignInActivity` → falls back to `CreatedDateTime`).
+
+```
+./audit.ps1          # Full audit → Console + JSON + Excel
+./audit-dry.ps1      # Preview checks without querying Graph
+```
+
 ## Roadmap
 
 - [x] **Day 1 v1** -- basic onboarding + cleanup
 - [x] **Day 1 v2** -- pre-flight validation, retry, idempotency, license/group/manager
 - [x] **Day 1 v2.1** -- fixed eventual-consistency bug with cache + self-healing
 - [x] **CLAUDE.md** -- project-level instructions for AI pair programming
-- [ ] **Day 2** -- security posture audit (MFA status, inactive accounts, privileged users) → Excel report
+- [x] **Day 2** -- security posture audit (5 checks, JSON + Excel output, free-tier graceful degradation)
 - [ ] **Day 3** -- automated offboarding workflow
 - [ ] **v3** -- replace interactive auth with `SecretManagement`, add `$batch` endpoint, Pester tests, GitHub Actions CI
 
