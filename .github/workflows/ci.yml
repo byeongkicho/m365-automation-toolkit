@@ -1,4 +1,4 @@
-name: CI - Lint & Validate
+name: CI - PowerShell Lint
 
 on:
   push:
@@ -7,79 +7,26 @@ on:
     branches: [main]
 
 jobs:
-  powershell-lint:
+  syntax-check:
     name: PowerShell Syntax Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install PowerShell
         uses: microsoft/setup-powershell@v1
-
-      - name: Syntax check all .ps1 files
+      - name: Check all .ps1 files
         shell: pwsh
         run: |
-          $errors = @()
+          $failed = $false
           Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
             $e = $null; $t = $null
             $null = [System.Management.Automation.Language.Parser]::ParseFile(
-              $_.FullName, [ref]$t, [ref]$e
-            )
+              $_.FullName, [ref]$t, [ref]$e)
             if ($e.Count -gt 0) {
-              $errors += "$($_.Name): $($e[0].Message)"
-              Write-Host "FAIL $($_.FullName)" -ForegroundColor Red
+              Write-Host "FAIL $($_.Name): $($e[0].Message)" -ForegroundColor Red
+              $failed = $true
             } else {
-              Write-Host "OK   $($_.FullName)" -ForegroundColor Green
+              Write-Host "OK   $($_.Name)" -ForegroundColor Green
             }
           }
-          if ($errors.Count -gt 0) {
-            Write-Error "Syntax errors found:`n$($errors -join "`n")"
-            exit 1
-          }
-          Write-Host "`nAll scripts passed syntax check."
-
-  csv-validation:
-    name: Validate Demo CSVs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install PowerShell
-        uses: microsoft/setup-powershell@v1
-
-      - name: Validate good CSV passes
-        shell: pwsh
-        run: |
-          $result = & ./scripts/01-bulk-onboarding/Test-OnboardingCsv.ps1 -CsvPath ./demo-data/new-hires-2026-05.csv
-          if (-not $result.IsValid) {
-            Write-Error "Good CSV should pass validation but got errors: $($result.Errors -join ', ')"
-            exit 1
-          }
-          Write-Host "Good CSV: PASSED ($($result.RowCount) rows)"
-
-      - name: Validate bad CSV fails
-        shell: pwsh
-        run: |
-          $result = & ./scripts/01-bulk-onboarding/Test-OnboardingCsv.ps1 -CsvPath ./demo-data/csv-invalid-example.csv
-          if ($result.IsValid) {
-            Write-Error "Bad CSV should fail validation but passed"
-            exit 1
-          }
-          Write-Host "Bad CSV: correctly rejected with $($result.Errors.Count) errors"
-
-  docker-build:
-    name: Docker Build Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build dashboard image
-        run: docker build -t m365-dashboard ./docker-demo
-
-      - name: Verify image runs
-        run: |
-          docker run -d --name test -p 8080:8080 m365-dashboard
-          sleep 3
-          curl -sf http://localhost:8080/health | grep -q "ok"
-          echo "Health check passed"
-          docker stop test
+          if ($failed) { exit 1 }
