@@ -23,6 +23,7 @@ self-healing on stale cache, structured JSON audit logs.
 | Same operation, second run (NoOp / idempotent) | -- | **<5 sec** | -- |
 | Pre-flight validation of a 10-row CSV | ~5 min | **<1 sec** | -- |
 | Security posture audit (5 checks, 11 users) | ~4 hours (manual) | **5.03 sec** | **~2800x** |
+| Employee offboarding (full lifecycle, 2 users) | ~1 hour (manual) | **~10 sec** | **~360x** |
 
 Lifecycle covered per user: create account → set department/title → assign
 license (when SKU available) → set manager → add to departmental security
@@ -99,10 +100,13 @@ m365-automation-toolkit/
 ├── docs/
 │   └── senior-review.md            # gap analysis from a senior M365 POV
 ├── logs/                           # JSON audit logs (gitignored)
-│   └── 02-security-audit/
-│       └── Get-SecurityPosture.ps1      # 5-check security audit → JSON + Excel
+│   ├── 02-security-audit/
+│   │   └── Get-SecurityPosture.ps1      # 5-check security audit → JSON + Excel
+│   └── 03-offboarding/
+│       └── Invoke-UserOffboarding.ps1   # automated offboarding workflow
 ├── dry.ps1, create.ps1, clean.ps1
 ├── audit.ps1, audit-dry.ps1            # Security audit wrappers
+├── offboard.ps1, offboard-dry.ps1      # Offboarding wrappers
 ├── validate-bad.ps1, dedupe-groups.ps1
 ```
 
@@ -239,7 +243,7 @@ per finding category. Gracefully degrades on free Entra ID tenants (no
 - [x] **Day 1 v2.1** -- fixed eventual-consistency bug with cache + self-healing
 - [x] **CLAUDE.md** -- project-level instructions for AI pair programming
 - [x] **Day 2** -- security posture audit (5 checks, JSON + Excel output, free-tier graceful degradation)
-- [ ] **Day 3** -- automated offboarding workflow
+- [x] **Day 3** -- automated offboarding (disable, revoke sessions, remove groups/manager, retention group)
 - [ ] **v3** -- replace interactive auth with `SecretManagement`, add `$batch` endpoint, Pester tests, GitHub Actions CI
 
 ## How this was built
