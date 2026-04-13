@@ -1,0 +1,7 @@
+DisplayName,MailNickname,GivenName,Surname,Department,JobTitle,UsageLocation
+,bad.empty,Bad,Empty,Engineering,Engineer,KR
+Duplicate One,john.smith,John,Smith,Engineering,Engineer,KR
+Duplicate Two,john.smith,John,Smith,Sales,Manager,KR
+Bad Format,JOHN_BAD,John,Bad,Engineering,Engineer,KR
+Wrong Dept,jane.wrong,Jane,Wrong,UnknownDept,Engineer,KR
+Bad Country,kim.country,Kim,Country,Engineering,Engineer,XX

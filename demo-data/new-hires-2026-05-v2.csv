@@ -1,0 +1,11 @@
+DisplayName,MailNickname,GivenName,Surname,Department,JobTitle,UsageLocation,ManagerUPN,LicenseSkuPartNumber
+Minsu Kim,minsu.kim,Minsu,Kim,Engineering,Cloud Engineer,KR,,
+Jiyoung Park,jiyoung.park,Jiyoung,Park,Engineering,DevOps Engineer,KR,minsu.kim@DOMAIN,
+Sungho Lee,sungho.lee,Sungho,Lee,Engineering,SRE,KR,minsu.kim@DOMAIN,
+Hyeri Choi,hyeri.choi,Hyeri,Choi,Sales,Account Executive,KR,,
+Dongwook Jung,dongwook.jung,Dongwook,Jung,Sales,Sales Manager,KR,hyeri.choi@DOMAIN,
+Yujin Han,yujin.han,Yujin,Han,HR,HR Specialist,KR,,
+Taehyun Seo,taehyun.seo,Taehyun,Seo,HR,Recruiter,KR,yujin.han@DOMAIN,
+Soyoung Im,soyoung.im,Soyoung,Im,Finance,Financial Analyst,KR,,
+Jaehoon Oh,jaehoon.oh,Jaehoon,Oh,Marketing,Marketing Manager,KR,,
+Eunji Bae,eunji.bae,Eunji,Bae,Marketing,Content Strategist,KR,jaehoon.oh@DOMAIN,

@@ -1,0 +1,24 @@
+# Secrets and credentials
+*.env
+*.secret
+.env
+secrets/
+credentials/
+
+# Logs (keep structure, ignore content)
+logs/*.json
+logs/*.log
+logs/*.csv
+!logs/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# PowerShell
+*.ps1xml.backup
