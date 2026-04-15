@@ -65,15 +65,19 @@ Install-Module ImportExcel  -Scope CurrentUser
 
 You will be prompted for Tenant ID, Client ID, and Client Secret Value.
 
-### 4. Run the wrappers
+### 4. Run
+
+All operations go through a single entry point:
 
 ```powershell
-./validate-bad.ps1   # Demo: pre-flight rejects a deliberately broken CSV
-./dry.ps1            # Preview what onboarding would do (no changes)
-./create.ps1         # Run idempotent onboarding for the demo CSV
-./create.ps1         # Run again -> all NoOp, proves idempotency
-./clean.ps1          # Remove the demo users
-./dedupe-groups.ps1  # Cleanup helper for duplicate Dept-* groups
+./run.ps1 onboard -DryRun    # Preview onboarding (no changes)
+./run.ps1 onboard            # Create users, assign groups/managers
+./run.ps1 onboard            # Run again -> all NoOp (idempotent)
+./run.ps1 audit              # Security posture audit -> JSON + Excel
+./run.ps1 offboard -DryRun   # Preview offboarding
+./run.ps1 offboard           # Disable, revoke sessions, remove groups
+./run.ps1 validate           # Test pre-flight CSV validation
+./run.ps1 clean              # Remove demo users
 ```
 
 ## Repository layout
@@ -104,10 +108,7 @@ m365-automation-toolkit/
 │   │   └── Get-SecurityPosture.ps1      # 5-check security audit → JSON + Excel
 │   └── 03-offboarding/
 │       └── Invoke-UserOffboarding.ps1   # automated offboarding workflow
-├── dry.ps1, create.ps1, clean.ps1
-├── audit.ps1, audit-dry.ps1            # Security audit wrappers
-├── offboard.ps1, offboard-dry.ps1      # Offboarding wrappers
-├── validate-bad.ps1, dedupe-groups.ps1
+├── run.ps1                              # Single entry point for all operations
 ```
 
 ## Design highlights
@@ -214,6 +215,33 @@ recommended patterns are:**
 
 See `docs/senior-review.md` for the full production gap analysis.
 The interactive auth is a deliberate trade-off, not an oversight.
+
+## Sample output: Onboarding
+
+```
+=== User Onboarding (v2) ===
+Validation OK (10 rows)
+Domain: contoso.onmicrosoft.com
+Cached 5 existing Dept-* groups
+Processing 10 users...
+
+  [NoOp] Minsu Kim -- noop
+  [NoOp] Jiyoung Park -- noop
+  [NoOp] Sungho Lee -- noop
+  [NoOp] Hyeri Choi -- noop
+  [NoOp] Dongwook Jung -- noop
+  [NoOp] Yujin Han -- noop
+  [NoOp] Taehyun Seo -- noop
+  [NoOp] Soyoung Im -- noop
+  [NoOp] Jaehoon Oh -- group-added:Dept-Marketing
+  [NoOp] Eunji Bae -- group-added:Dept-Marketing
+
+=== Summary ===
+  Total: 10 | Created: 0 | Updated: 0 | NoOp: 10 | Failed: 0
+  Duration: 6.34s
+```
+
+A sanitized sample audit log is available at [`docs/sample-audit-log.json`](docs/sample-audit-log.json).
 
 ## Script: Security Posture Audit
 

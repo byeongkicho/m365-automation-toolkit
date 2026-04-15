@@ -1,0 +1,95 @@
+{
+  "Version": "2.0",
+  "RunTimestamp": "2026-04-10T16:48:38.1750130+09:00",
+  "DurationSec": 7.54,
+  "CsvPath": "/Users/ki/workspace/m365-automation-toolkit/demo-data/new-hires-2026-05.csv",
+  "Domain": "contoso.onmicrosoft.com",
+  "DryRun": false,
+  "TotalUsers": 10,
+  "CreatedCount": 0,
+  "UpdatedCount": 0,
+  "NoOpCount": 10,
+  "FailCount": 0,
+  "Results": [
+    {
+      "DisplayName": "Minsu Kim",
+      "UserPrincipalName": "minsu.kim@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:38.8807340+09:00"
+    },
+    {
+      "DisplayName": "Jiyoung Park",
+      "UserPrincipalName": "jiyoung.park@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:41.1539710+09:00"
+    },
+    {
+      "DisplayName": "Sungho Lee",
+      "UserPrincipalName": "sungho.lee@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:41.6512830+09:00"
+    },
+    {
+      "DisplayName": "Hyeri Choi",
+      "UserPrincipalName": "hyeri.choi@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:42.0376850+09:00"
+    },
+    {
+      "DisplayName": "Dongwook Jung",
+      "UserPrincipalName": "dongwook.jung@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:43.0562470+09:00"
+    },
+    {
+      "DisplayName": "Yujin Han",
+      "UserPrincipalName": "yujin.han@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:43.5377290+09:00"
+    },
+    {
+      "DisplayName": "Taehyun Seo",
+      "UserPrincipalName": "taehyun.seo@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:43.9244340+09:00"
+    },
+    {
+      "DisplayName": "Soyoung Im",
+      "UserPrincipalName": "soyoung.im@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:44.3295930+09:00"
+    },
+    {
+      "DisplayName": "Jaehoon Oh",
+      "UserPrincipalName": "jaehoon.oh@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:44.7909960+09:00"
+    },
+    {
+      "DisplayName": "Eunji Bae",
+      "UserPrincipalName": "eunji.bae@contoso.onmicrosoft.com",
+      "Status": "NoOp",
+      "Actions": "noop",
+      "Message": null,
+      "Timestamp": "2026-04-10T16:48:45.3030740+09:00"
+    }
+  ]
+}
