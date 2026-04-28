@@ -7,14 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Note: ubuntu-latest runners ship with PowerShell 7.x pre-installed.
+# `shell: pwsh` is sufficient; no separate setup-powershell action needed.
+
 jobs:
   syntax-check:
     name: PowerShell Syntax Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install PowerShell
-        uses: microsoft/setup-powershell@v1
       - name: Parse all .ps1 files
         shell: pwsh
         run: |
@@ -37,8 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install PowerShell
-        uses: microsoft/setup-powershell@v1
       - name: Install PSScriptAnalyzer
         shell: pwsh
         run: |
@@ -69,8 +68,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install PowerShell
-        uses: microsoft/setup-powershell@v1
       - name: Install Pester 5
         shell: pwsh
         run: |
