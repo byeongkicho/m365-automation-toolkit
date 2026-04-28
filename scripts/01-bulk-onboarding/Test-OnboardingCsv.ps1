@@ -86,7 +86,11 @@ for ($i = 0; $i -lt $users.Count; $i++) {
     }
 
     # MailNickname format (lowercase letters, digits, dots only)
-    if ($u.MailNickname -and $u.MailNickname -notmatch '^[a-z0-9.]+$') {
+    # NOTE: -cnotmatch (case-sensitive) is required here. PowerShell's
+    # default -notmatch is case-insensitive, which would silently allow
+    # MailNicknames like "JOHN.SMITH" to pass this regex despite the
+    # intent being lowercase-only. Caught by Pester unit test.
+    if ($u.MailNickname -and $u.MailNickname -cnotmatch '^[a-z0-9.]+$') {
         $errors += "Row ${row}: invalid MailNickname '$($u.MailNickname)' (use lowercase letters, digits, dots)"
     }
 
