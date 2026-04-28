@@ -108,6 +108,7 @@ m365-automation-toolkit/
 ├── docs/
 │   ├── senior-review.md                 # gap analysis from a senior M365 POV
 │   ├── architecture.md                  # design patterns deep-dive
+│   ├── build-log.md                     # bugs and lessons encountered (live)
 │   └── sample-audit-log.json            # sanitized example output
 ├── tests/                               # Pester 5 tests
 │   ├── Test-OnboardingCsv.Tests.ps1
@@ -345,6 +346,11 @@ architectural decisions, debugging, and pattern selection were mine; Claude
 accelerated the typing and helped me look up Graph SDK syntax. The most
 interesting moment was diagnosing an eventual-consistency bug in group
 membership operations -- documented in `docs/senior-review.md`.
+
+Bugs and lessons encountered during development are captured live in
+[`docs/build-log.md`](docs/build-log.md). The most concrete recent example:
+a Pester unit test, added 30 minutes earlier, caught a `case-insensitive`
+regex bug in the validation code that had been shipping silently for weeks.
 
 ## License
 
