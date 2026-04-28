@@ -90,25 +90,37 @@ m365-automation-toolkit/
 │   └── Connect-M365.ps1            # one-shot interactive auth
 ├── modules/
 │   └── M365Helper/
-│       └── Invoke-WithRetry.ps1    # exponential backoff for Graph 429
+│       └── Invoke-WithRetry.ps1         # exponential backoff for Graph 429/503
 ├── scripts/
-│   └── 01-bulk-onboarding/
-│       ├── Test-OnboardingCsv.ps1       # pre-flight validation
-│       ├── Invoke-UserOnboarding.ps1    # main: idempotent reconciliation
-│       ├── New-BulkEntraUsers.ps1       # v1, kept for reference
-│       ├── Remove-BulkEntraUsers.ps1    # cleanup
-│       └── Remove-DuplicateGroups.ps1   # dedupe helper
-├── demo-data/
-│   ├── new-hires-2026-05.csv            # 10 sample users
-│   └── csv-invalid-example.csv          # deliberately broken, validation demo
-├── docs/
-│   └── senior-review.md            # gap analysis from a senior M365 POV
-├── logs/                           # JSON audit logs (gitignored)
+│   ├── 01-bulk-onboarding/
+│   │   ├── Test-OnboardingCsv.ps1       # pre-flight validation
+│   │   ├── Invoke-UserOnboarding.ps1    # main: idempotent reconciliation
+│   │   ├── New-BulkEntraUsers.ps1       # v1, kept for reference
+│   │   ├── Remove-BulkEntraUsers.ps1    # cleanup
+│   │   └── Remove-DuplicateGroups.ps1   # dedupe helper
 │   ├── 02-security-audit/
 │   │   └── Get-SecurityPosture.ps1      # 5-check security audit → JSON + Excel
 │   └── 03-offboarding/
 │       └── Invoke-UserOffboarding.ps1   # automated offboarding workflow
+├── demo-data/
+│   ├── new-hires-2026-05.csv            # 10 sample users
+│   └── csv-invalid-example.csv          # deliberately broken, validation demo
+├── docs/
+│   ├── senior-review.md                 # gap analysis from a senior M365 POV
+│   ├── architecture.md                  # design patterns deep-dive
+│   └── sample-audit-log.json            # sanitized example output
+├── tests/                               # Pester 5 tests
+│   ├── Test-OnboardingCsv.Tests.ps1
+│   └── Invoke-WithRetry.Tests.ps1
+├── logs/                                # JSON audit logs (gitignored runtime artifacts)
+│   └── .gitkeep
+├── .github/
+│   └── workflows/
+│       └── ci.yml                       # PSScriptAnalyzer + Pester
 ├── run.ps1                              # Single entry point for all operations
+├── CLAUDE.md                            # AI pair-programming instructions
+├── CONTRIBUTING.md
+└── LICENSE
 ```
 
 ## Design highlights
@@ -202,6 +214,57 @@ Every run produces a timestamped JSON file under `./logs/`:
 
 These are intentionally machine-readable so they can be ingested by SIEM,
 Splunk, or used as compliance evidence.
+
+## Architecture diagrams
+
+### Decision tree per user (idempotent reconciliation)
+
+```mermaid
+flowchart TD
+    Start([CSV row]) --> ValidateCsv{Pre-flight valid?}
+    ValidateCsv -->|No| Reject[Reject early<br/>0 API calls]
+    ValidateCsv -->|Yes| Lookup{User exists?}
+    Lookup -->|No| CreateUser[Create user]
+    Lookup -->|Drift detected| UpdateUser[Update only<br/>changed fields]
+    Lookup -->|Match| NoOp[NoOp]
+    CreateUser --> AssignDept[Assign Dept-* group]
+    UpdateUser --> AssignDept
+    NoOp --> AssignDept
+    AssignDept --> InCache{Group in cache?}
+    InCache -->|Yes| AddMember[Add member<br/>via cached ID]
+    InCache -->|No / 404| Refetch[Refetch by displayName<br/>update cache]
+    Refetch --> AddMember
+    AddMember --> Audit[Append to audit log]
+    Audit --> Next([Next row])
+```
+
+### Eventual-consistency self-healing (group membership)
+
+```mermaid
+sequenceDiagram
+    participant Loop as Onboarding loop
+    participant Cache as In-memory group cache
+    participant Graph as Microsoft Graph API
+
+    Note over Cache,Graph: Cache pre-loaded ONCE at run start<br/>(sorted by CreatedDateTime ASC, deduped by name)
+
+    Loop->>Cache: Find "Dept-Marketing"
+    Cache-->>Loop: cached group ID
+    Loop->>Graph: New-MgGroupMember(cached ID)
+
+    alt Cache stale (group recreated since pre-load)
+        Graph-->>Loop: 404 Request_ResourceNotFound
+        Loop->>Graph: List groups by displayName
+        Graph-->>Loop: Latest group ID
+        Loop->>Cache: Update entry
+        Loop->>Graph: Retry New-MgGroupMember
+        Graph-->>Loop: 204 No Content
+    else Cache fresh
+        Graph-->>Loop: 204 No Content
+    end
+```
+
+For deeper design rationale (trade-offs, alternatives, what would change in production), see [`docs/architecture.md`](docs/architecture.md).
 
 ## What this is NOT (and why)
 
