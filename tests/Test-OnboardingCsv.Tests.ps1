@@ -1,13 +1,24 @@
 # Pester 5 tests for Test-OnboardingCsv.ps1
 #
 # Run locally: Invoke-Pester -Path ./tests/Test-OnboardingCsv.Tests.ps1
-# These tests are pure logic — no Microsoft Graph calls. Safe in CI.
+# Pure logic — no Microsoft Graph calls. Safe in CI.
 
 BeforeAll {
-    $script:ScriptPath = Resolve-Path (Join-Path $PSScriptRoot '..' 'scripts/01-bulk-onboarding/Test-OnboardingCsv.ps1')
+    $script:ScriptPath = (Resolve-Path (Join-Path $PSScriptRoot '..' 'scripts/01-bulk-onboarding/Test-OnboardingCsv.ps1')).Path
 }
 
 Describe 'Test-OnboardingCsv' {
+
+    BeforeAll {
+        # Pester 5 requires helpers to be defined inside BeforeAll to be
+        # visible to Context/It blocks.
+        function New-TestCsv {
+            param([string]$Content, [string]$Name = 'test.csv')
+            $path = Join-Path $script:TempDir.FullName $Name
+            $Content | Set-Content -Path $path -Encoding utf8
+            return $path
+        }
+    }
 
     BeforeEach {
         $script:TempDir = New-Item -ItemType Directory -Path (Join-Path ([System.IO.Path]::GetTempPath()) "csv-tests-$(Get-Random)") -Force
@@ -17,13 +28,6 @@ Describe 'Test-OnboardingCsv' {
         if (Test-Path $script:TempDir.FullName) {
             Remove-Item -Recurse -Force $script:TempDir.FullName
         }
-    }
-
-    function New-TestCsv {
-        param([string]$Content, [string]$Name = 'test.csv')
-        $path = Join-Path $script:TempDir.FullName $Name
-        $Content | Set-Content -Path $path -Encoding utf8
-        return $path
     }
 
     Context 'Schema validation' {
