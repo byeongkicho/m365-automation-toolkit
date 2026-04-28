@@ -335,7 +335,8 @@ per finding category. Gracefully degrades on free Entra ID tenants (no
 - [x] **CLAUDE.md** -- project-level instructions for AI pair programming
 - [x] **Day 2** -- security posture audit (5 checks, JSON + Excel output, free-tier graceful degradation)
 - [x] **Day 3** -- automated offboarding (disable, revoke sessions, remove groups/manager, retention group)
-- [ ] **v3** -- replace interactive auth with `SecretManagement`, add `$batch` endpoint, Pester tests, GitHub Actions CI
+- [x] **v2.2** -- Pester 5 unit tests + PSScriptAnalyzer lint + CI three-stage pipeline (syntax / lint / test)
+- [ ] **v3** -- replace interactive auth with `SecretManagement`, add `$batch` endpoint for bulk Graph operations, Pester integration tests against a sandbox tenant
 
 ## How this was built
 

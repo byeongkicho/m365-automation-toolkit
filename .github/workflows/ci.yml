@@ -1,10 +1,11 @@
-name: CI - PowerShell Lint
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   syntax-check:
@@ -14,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install PowerShell
         uses: microsoft/setup-powershell@v1
-      - name: Check all .ps1 files
+      - name: Parse all .ps1 files
         shell: pwsh
         run: |
           $failed = $false
@@ -30,3 +31,69 @@ jobs:
             }
           }
           if ($failed) { exit 1 }
+
+  lint:
+    name: PSScriptAnalyzer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PowerShell
+        uses: microsoft/setup-powershell@v1
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      - name: Run linter
+        shell: pwsh
+        run: |
+          $excluded = @(
+            'PSAvoidUsingWriteHost',
+            'PSUseShouldProcessForStateChangingFunctions'
+          )
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -ExcludeRule $excluded
+          if ($results) {
+            $results | Format-Table -AutoSize
+            $errors = @($results | Where-Object Severity -eq 'Error')
+            if ($errors.Count -gt 0) {
+              Write-Host "::error::$($errors.Count) PSScriptAnalyzer error(s)"
+              exit 1
+            }
+            Write-Host "::warning::$($results.Count) PSScriptAnalyzer warning(s) (non-blocking)"
+          } else {
+            Write-Host "::notice::No PSScriptAnalyzer issues"
+          }
+
+  test:
+    name: Pester Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PowerShell
+        uses: microsoft/setup-powershell@v1
+      - name: Install Pester 5
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -MinimumVersion 5.0 -MaximumVersion 5.999 -Scope CurrentUser -Force -SkipPublisherCheck
+      - name: Run Pester
+        shell: pwsh
+        run: |
+          if (-not (Test-Path ./tests)) {
+            Write-Host "::warning::No tests/ directory yet — skipping"
+            exit 0
+          }
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests'
+          $config.Run.Throw = $true
+          $config.Output.Verbosity = 'Detailed'
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputPath = 'TestResults.xml'
+          Invoke-Pester -Configuration $config
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults.xml
+          if-no-files-found: ignore
