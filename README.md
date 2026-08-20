@@ -17,13 +17,21 @@ self-healing on stale cache, structured JSON audit logs.
 
 ## Headline metrics
 
-| Operation | Manual | Automated | Speedup |
-|---|---|---|---|
-| Bulk user onboarding (10 users, full lifecycle) | ~30 min | **6.34 sec** | **284x** |
-| Same operation, second run (NoOp / idempotent) | -- | **<5 sec** | -- |
-| Pre-flight validation of a 10-row CSV | ~5 min | **<1 sec** | -- |
-| Security posture audit (5 checks, 11 users) | ~4 hours (manual) | **5.03 sec** | **~2800x** |
-| Employee offboarding (full lifecycle, 2 users) | ~1 hour (manual) | **~10 sec** | **~360x** |
+Every automated figure below is the `DurationSec` from a run log in [`logs/`](logs/), cited per row.
+Manual baselines are estimates, not measurements.
+
+| Operation | Manual (est.) | Automated | Speedup | Log |
+|---|---|---|---|---|
+| Bulk user onboarding — **10 users created** | ~30 min | **8.3 sec** | **~217x** | `onboarding-20260410-125258.json` |
+| Same operation, second run — all 10 NoOp | -- | 3.8–15.5 sec (5 runs) | -- | `onboarding-v2-*.json` |
+| Pre-flight validation of a 10-row CSV | ~5 min | <1 sec | -- | not logged |
+| Security posture audit — 5 checks, 11 users, 3 findings | ~4 hours | **5.03 sec** | **~2800x** | `security-audit-20260413-103228.json` |
+| Employee offboarding — 2 users evaluated, **0 offboarded** | ~1 hour | 5.31 sec | -- | `offboarding-20260413-130007.json` |
+
+> The onboarding row is the run that actually provisioned all ten accounts. A second run against the
+> same tenant is a no-op by design — idempotency is the point — so its duration measures reconciliation,
+> not provisioning, and the two are not comparable. The offboarding log shows the lifecycle wired up
+> end to end against two users with nothing left to remove; it is not a throughput measurement.
 
 Lifecycle covered per user: create account → set department/title → assign
 license (when SKU available) → set manager → add to departmental security
@@ -189,6 +197,9 @@ This was discovered the hard way; see the debugging story in
 ### 5. Structured audit logs
 
 Every run produces a timestamped JSON file under `./logs/`:
+
+The sample below is a **second run against an already-provisioned tenant** — every user is a
+no-op, so `CreatedCount` is 0. Do not read its `DurationSec` as a provisioning time.
 
 ```json
 {

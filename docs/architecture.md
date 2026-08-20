@@ -93,6 +93,9 @@ If the second attempt also 404s, it's a real error and gets logged with full con
 
 Every run produces a timestamped JSON file under `./logs/`:
 
+The sample below is a **second run against an already-provisioned tenant** — every user is a
+no-op, so `CreatedCount` is 0. Do not read its `DurationSec` as a provisioning time.
+
 ```json
 {
   "Version": "2.0",
