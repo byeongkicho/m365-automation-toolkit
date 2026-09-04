@@ -25,6 +25,11 @@
 .PARAMETER SkipValidation
     Bypass pre-flight CSV validation (not recommended).
 
+.PARAMETER IgnoreLicenseCapacity
+    Proceed even when the tenant does not have enough seats for this CSV.
+    Without it the run stops before creating anyone: Graph fails a seat shortage
+    one user at a time, midway through, leaving a half-provisioned batch.
+
 .EXAMPLE
     ./Invoke-UserOnboarding.ps1 -CsvPath ../../demo-data/new-hires-2026-05.csv -DryRun
 
@@ -44,14 +49,18 @@ param(
     [switch]$DryRun,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SkipValidation
+    [switch]$SkipValidation,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$IgnoreLicenseCapacity
 )
 
 $ErrorActionPreference = 'Stop'
 $startTime = Get-Date
 
-# Load helper module
+# Load helper modules
 . (Join-Path $PSScriptRoot '../../modules/M365Helper/Invoke-WithRetry.ps1')
+. (Join-Path $PSScriptRoot '../../modules/M365Helper/Test-LicenseCapacity.ps1')
 
 Write-Host ""
 Write-Host "=== User Onboarding (v2) ===" -ForegroundColor Cyan
@@ -87,11 +96,14 @@ if (-not $Domain) {
 
 # --- 3. Pre-fetch SKU catalog (for license lookup) ---
 $skuCatalog = @{}
+$licenseCapacity = @()
 try {
     $skus = Invoke-WithRetry { Get-MgSubscribedSku }
     foreach ($sku in $skus) {
         $skuCatalog[$sku.SkuPartNumber] = $sku.SkuId
     }
+    # SkuId alone cannot answer "will these users actually get a license".
+    $licenseCapacity = @(Get-LicenseCapacity -SubscribedSku $skus)
     Write-Host "Available licenses: $($skuCatalog.Count) SKUs" -ForegroundColor Gray
 }
 catch {
@@ -99,6 +111,41 @@ catch {
 }
 
 $users = Import-Csv $CsvPath
+
+# --- 3b. License capacity pre-flight ---
+# Graph does not fail a bulk run when seats run out. It fails per user, partway
+# through, so the tenant ends up half-provisioned and the operator hears about
+# it from the new hires. Check before mutating anything.
+if ($licenseCapacity.Count -gt 0) {
+    $required = @{}
+    foreach ($u in $users) {
+        $sku = $null
+        if ($u.PSObject.Properties['LicenseSkuPartNumber']) { $sku = $u.LicenseSkuPartNumber }
+        if (-not [string]::IsNullOrWhiteSpace($sku)) {
+            $required[$sku] = ([int]$required[$sku]) + 1
+        }
+    }
+
+    if ($required.Count -gt 0) {
+        $capacityCheck = Test-LicenseCapacity -Capacity $licenseCapacity -Required $required
+        foreach ($row in $capacityCheck.Rows) {
+            $line = "  {0,-18} need {1,4} / free {2,4}  [{3}]" -f $row.SkuPartNumber, $row.Required, $row.Available, $row.Status
+            Write-Host $line -ForegroundColor $(if ($row.Status -eq 'OK') { 'Gray' } else { 'Red' })
+            if ($row.Detail) { Write-Host "    note: $($row.Detail)" -ForegroundColor DarkYellow }
+        }
+
+        if (-not $capacityCheck.IsSatisfied) {
+            if ($IgnoreLicenseCapacity -or $DryRun) {
+                Write-Warning "License capacity is insufficient. Continuing because -IgnoreLicenseCapacity or -DryRun was specified; some users will be created without a license."
+            }
+            else {
+                Write-Host ""
+                Write-Host "Aborting before any user is created. Re-run with -IgnoreLicenseCapacity to proceed anyway." -ForegroundColor Red
+                exit 1
+            }
+        }
+    }
+}
 Write-Host "Processing $($users.Count) users..." -ForegroundColor Gray
 
 # Pre-load all Dept-* groups into a hashtable. Avoids the eventual-consistency
