@@ -61,6 +61,7 @@ $startTime = Get-Date
 # Load helper modules
 . (Join-Path $PSScriptRoot '../../modules/M365Helper/Invoke-WithRetry.ps1')
 . (Join-Path $PSScriptRoot '../../modules/M365Helper/Test-LicenseCapacity.ps1')
+. (Join-Path $PSScriptRoot '../../modules/M365Helper/Test-DirectorySyncGuard.ps1')
 
 Write-Host ""
 Write-Host "=== User Onboarding (v2) ===" -ForegroundColor Cyan
@@ -203,7 +204,7 @@ foreach ($u in $users) {
         # ---- Check if user exists ----
         $existing = Invoke-WithRetry {
             Get-MgUser -Filter "userPrincipalName eq '$upn'" `
-                       -Property Id,DisplayName,GivenName,Surname,Department,JobTitle,UsageLocation,AccountEnabled `
+                       -Property Id,DisplayName,GivenName,Surname,Department,JobTitle,UsageLocation,AccountEnabled,OnPremisesSyncEnabled `
                        -ErrorAction SilentlyContinue
         }
 
@@ -245,6 +246,18 @@ foreach ($u in $users) {
             foreach ($f in $fields) {
                 if ($existing.$f -ne $u.$f) {
                     $drift[$f] = $u.$f
+                }
+            }
+
+            # Hybrid guard: writing an on-prem authoritative field succeeds in
+            # Graph and is reverted at the next sync cycle -- the log would say
+            # "Updated" for a change that no longer exists 30 minutes later.
+            if ($drift.Count -gt 0) {
+                $guard = Test-DirectorySyncGuard -User $existing -Fields @($drift.Keys)
+                if ($guard.IsSynced -and $guard.WillBeOverwritten.Count -gt 0) {
+                    foreach ($f in $guard.WillBeOverwritten) { $drift.Remove($f) }
+                    $actions += "sync-skip:$($guard.WillBeOverwritten -join ',')"
+                    Write-Host "    [SYNC] on-prem authoritative, not written: $($guard.WillBeOverwritten -join ', ')" -ForegroundColor Yellow
                 }
             }
 

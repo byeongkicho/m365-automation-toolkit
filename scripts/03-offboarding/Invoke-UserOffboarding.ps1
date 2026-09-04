@@ -53,8 +53,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $startTime = Get-Date
 
-# Load retry helper
+# Load helper modules
 . (Join-Path $PSScriptRoot '../../modules/M365Helper/Invoke-WithRetry.ps1')
+. (Join-Path $PSScriptRoot '../../modules/M365Helper/Test-DirectorySyncGuard.ps1')
 
 Write-Host ""
 Write-Host "=== Employee Offboarding ===" -ForegroundColor Cyan
@@ -132,6 +133,9 @@ foreach ($upn in $upnList) {
         Status            = $null
         Actions           = $null
         Message           = $null
+        # Recorded per user: a hybrid revert is exactly the kind of thing an
+        # auditor needs to see in the log, not only on the operator's console.
+        SyncWarning       = $null
         Timestamp         = (Get-Date).ToString('o')
     }
 
@@ -139,7 +143,7 @@ foreach ($upn in $upnList) {
         # Step 0: Find the user
         $user = Invoke-WithRetry {
             Get-MgUser -Filter "userPrincipalName eq '$upn'" `
-                       -Property Id,DisplayName,UserPrincipalName,AccountEnabled `
+                       -Property Id,DisplayName,UserPrincipalName,AccountEnabled,OnPremisesSyncEnabled `
                        -ErrorAction Stop
         }
 
@@ -153,6 +157,20 @@ foreach ($upn in $upnList) {
         }
 
         Write-Host "  Processing: $($user.DisplayName) ($upn)" -ForegroundColor Gray
+
+        # Hybrid check: for a synced user, disabling the account in the cloud is
+        # reverted at the next Entra Connect cycle. Without this the log reads
+        # "[1] Account disabled" and the leaver signs in again the next morning.
+        $syncImpact = Get-OffboardingSyncImpact -User $user
+        if (-not $syncImpact.IsEffective) {
+            $actions += 'sync-warning'
+            $result.SyncWarning = $syncImpact.Guidance
+            Write-Host "    [!] SYNCED USER -- disabling in the cloud will NOT hold." -ForegroundColor Red
+            Write-Host "        $($syncImpact.Guidance)" -ForegroundColor Yellow
+        }
+        elseif ($syncImpact.Severity -eq 'Unknown') {
+            Write-Host "    [?] sync state unknown: $($syncImpact.Guidance)" -ForegroundColor DarkYellow
+        }
 
         if ($DryRun) {
             $result.Status = 'WouldOffboard'
