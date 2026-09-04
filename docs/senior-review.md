@@ -4,6 +4,29 @@
 > Use this as the roadmap to elevate the project from "junior portfolio" to
 > "production-ready reference architecture."
 
+> ## ⚠️ STATUS: partly out of date (checked 2026-09-04)
+>
+> Most of what this document lists as P0/P1 has since been implemented. Read the
+> status column before treating anything here as an open item.
+>
+> | Item in this doc | Actual state (2026-09-04, verified against the code) |
+> |---|---|
+> | P0 Secret management | **Still open.** `setup/Connect-M365.ps1` still uses `Read-Host`. |
+> | P0 Idempotent reconciliation | **Done.** `Invoke-UserOnboarding.ps1` does CREATE / UPDATE-on-drift / NO-OP. |
+> | P1 Throttling and retry | **Done.** `modules/M365Helper/Invoke-WithRetry.ps1`, honors `Retry-After`, 429/503 only. |
+> | P1 Batch requests | **Still open.** |
+> | P1 License assignment | **Done** (`Set-MgUserLicense` + SKU catalog + `UsageLocation`) -- but this doc never asked whether seats were *available*, which was the real gap. See build-log 2026-09-04. |
+> | P2 Pre-flight validation | **Done.** `Test-OnboardingCsv.ps1`, 13 tests. |
+> | P2 Structured logging | Partly. JSON audit logs exist; no centralization. |
+> | P2 Lifecycle triggers | Still open (out of scope for a lab). |
+> | P3 Manager assignment | **Done.** `Set-MgUserManagerByRef`. |
+>
+> **What this document missed entirely**, and what actually broke first:
+> hybrid tenants (`onPremisesSyncEnabled` was never mentioned) and license
+> **capacity** as distinct from license *assignment*. Both are covered in
+> `build-log.md` under 2026-09-04. A generic best-practice roadmap is not the
+> same thing as knowing where this particular code lies to you.
+
 ## 🔴 P0 -- Security: Secret Management
 
 **Current state:** Read-Host prompts for the Client Secret on every run. Lives only

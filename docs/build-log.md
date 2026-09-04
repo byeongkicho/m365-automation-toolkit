@@ -6,6 +6,112 @@ This document is for future-me first, reviewers second. The honesty is the point
 
 ---
 
+## 2026-09-04 -- Cloud-only assumptions: capacity and hybrid
+
+This round did not start from a failure. It started from an interview question.
+An M365 engineer asked how this toolkit handles Graph idempotency and 504s, and
+separately how one would roll M365 out to a **300-person customer**. Answering
+honestly meant reading the code instead of remembering it, and the read surfaced
+two assumptions the toolkit had never questioned.
+
+Both gaps share a shape: **the toolkit was built and tested against a small,
+cloud-only tenant**, and both only bite at a scale or in a topology it never saw.
+
+### Gap 1: seat capacity was never checked
+
+**Symptom.** None yet -- this has not fired, because the test tenant never ran
+out of seats. It fires on the first real batch that exceeds the subscription.
+
+**Root cause.** The onboarding script pre-fetches the SKU catalog, but only reads
+`SkuPartNumber -> SkuId`. It never asks `PrepaidUnits` / `ConsumedUnits`. That is
+fine until seats run out, and Graph does not fail a bulk run as a unit -- it
+fails **per user, partway through**. A 300-row CSV against 250 free seats creates
+250 licensed users and 50 accounts that exist with no license, and the operator
+learns about it from the new hires.
+
+**Fix.** `modules/M365Helper/Test-LicenseCapacity.ps1`: `Get-LicenseCapacity`
+turns `Get-MgSubscribedSku` output into per-SKU availability, `Test-LicenseCapacity`
+compares it against what the CSV asks for. Wired into `Invoke-UserOnboarding.ps1`
+**before any user is created**; the run aborts unless `-IgnoreLicenseCapacity` is
+passed. 12 Pester tests.
+
+**Takeaway.**
+- `PrepaidUnits` has three states and **only `Enabled` is assignable**. Seats in
+  `Warning` are an expired subscription inside its grace period: Graph *accepts*
+  assignments against them, and they stop working when the grace period ends.
+  Counting them as available is the subtle version of this bug.
+- "Not in the tenant at all" and "out of seats" need different fixes (a CSV typo
+  vs. a purchase), so they are reported as different statuses.
+
+### Gap 2: every script assumed a cloud-only tenant
+
+**Symptom.** In a hybrid tenant, offboarding reports success and the leaver can
+sign in the next morning.
+
+**Root cause.** `onPremisesSyncEnabled` appeared **zero times** in the codebase.
+For a user synchronized by Entra Connect, on-premises AD is authoritative for
+most attributes including `accountEnabled`. So:
+
+```
+Update-MgUser -AccountEnabled:$false   ->  Graph accepts it
+log writes "[1] Account disabled"      ->  operator believes offboarding ran
+next sync cycle (~30 min)              ->  on-prem value wins, account is live
+```
+
+This is worse than an error, because an error would have been noticed.
+
+**Fix.** `modules/M365Helper/Test-DirectorySyncGuard.ps1`. Three functions:
+`Test-UserIsSynced` (and whether we even *know* -- a property that was never
+requested is not evidence of a cloud-only user), `Test-DirectorySyncGuard`
+(splits an intended write into what will stick and what gets reverted), and
+`Get-OffboardingSyncImpact` (offboarding gets an explicit answer because a
+silent revert there is a security incident, not an inconvenience).
+Wired into onboarding drift-update and offboarding; `onPremisesSyncEnabled`
+added to both `-Property` lists. 12 Pester tests.
+
+**Takeaway.**
+- **"The call succeeded" and "the value is still there in 30 minutes" are
+  different claims.** Only the second one is what the log implies.
+- Session revocation is *not* listed as ineffective -- it is a cloud-side
+  operation and does work. Overstating the blast radius would have been the same
+  class of error as missing it. It only buys time, and the guidance says so.
+- The guard is deliberately conservative: a field is called cloud-manageable
+  only when it is cloud-only by nature, because wrongly promising that a write
+  will persist is the expensive direction.
+
+### Bug found while wiring: assigning to a property that does not exist
+
+**Symptom.** `$result.SyncWarning = $syncImpact.Guidance` would have thrown
+`The property 'SyncWarning' cannot be found on this object.`
+
+**Root cause.** `[PSCustomObject]@{...}` does not accept new properties by
+assignment; the offboarding result object had no such field.
+
+**Fix.** Added `SyncWarning` to the result object's definition -- which is better
+anyway, since the warning now lands in the **audit log** rather than scrolling
+past on the console.
+
+**Takeaway.** Caught by checking the object definition before running, not by
+running. Worth confirming the failure explicitly (`$r=[PSCustomObject]@{A=1}; $r.B='x'`)
+rather than assuming PowerShell would be permissive.
+
+### What this round deliberately did NOT do
+
+Listed so the omissions are visible rather than implied:
+
+| Gap | Why it matters | Status |
+|---|---|---|
+| `$batch` requests | 300 users = 300 round trips; Graph recommends batching up to 20 | **not done** |
+| Soft-deleted user collision | A deleted user is recoverable for 30 days; recreating the same UPN fails | **not done** |
+| Mailbox / OneDrive retention on offboard | Removing all groups can strip a group-based license, and mailbox data follows the license | **not done** -- highest-risk remaining gap |
+| `ShouldProcess` / `-WhatIf` | The scripts use a hand-rolled `-DryRun` instead of the PowerShell convention | **not done** |
+| HTTP 504 | `Invoke-WithRetry` treats only 429/503 as retryable; everything else re-throws | **not done, by choice** -- see note |
+
+On 504 specifically: a gateway timeout means the request may have been processed
+without a response reaching us, so blind retry risks duplicates. That is safe
+here *only because* the operations are idempotent -- which is the actual reason
+to add it, and the reason it is a deliberate omission rather than an oversight.
+
 ## 2026-04-28 — Pester + CI hardening round
 
 The toolkit already shipped onboarding, security audit, and offboarding scripts. This round added Pester unit tests, PSScriptAnalyzer linting, a 3-stage CI pipeline, Mermaid architecture diagrams, and a deep-dive `architecture.md`. Six commits.
